@@ -30,22 +30,6 @@ type requestData struct {
 	Type string `json:"type"`
 }
 
-// getTempMail gives a temporary email using the Guerrillamail Apis
-func getTempMail() (string, error) {
-	mailResponse, err := http.Get("http://api.guerrillamail.com/ajax.php?f=get_email_address")
-	if err != nil {
-		return "", fmt.Errorf("error getting temp-mail response: %w", err)
-	}
-	defer mailResponse.Body.Close()
-	mailBody, err := ioutil.ReadAll(mailResponse.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading temp-mail response: %w", err)
-	}
-
-	// Using hardcoded indexes to extract the email address only
-	return string(mailBody[15:46]), err
-}
-
 // fileData is a template for writing user data, accessable only during creation, to a file
 type fileData struct {
 	Id    string `json:"id"`
@@ -61,9 +45,11 @@ func writeUser(user UserData) error {
 		if err != nil {
 			return fmt.Errorf("can't open user file: %w", err)
 		}
-		err = json.Unmarshal(userFile, &data)
-		if err != nil {
-			return fmt.Errorf("can't read user file: %w", err)
+		if len(userFile) > 0 {
+			err = json.Unmarshal(userFile, &data)
+			if err != nil {
+				return fmt.Errorf("can't read user file: %w", err)
+			}
 		}
 	}
 	n := strconv.Itoa(len(data))
@@ -90,7 +76,7 @@ func CreateUser(name string) (UserData, error) {
 	var data requestData
 	var user UserData
 	data.Attribute.UserName = name
-	data.Attribute.Email, err = getTempMail()
+	data.Attribute.Email, err = utils.GetTempMail()
 	if err != nil {
 		return user, fmt.Errorf("error getting email: %w", err)
 	}

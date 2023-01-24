@@ -2,9 +2,13 @@ package main
 
 import (
 	"anime-app/users"
+	"anime-app/utils"
+	"encoding/json"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"os"
+	"strconv"
+	"time"
 )
 
 // type Title struct {
@@ -34,48 +38,130 @@ type JSN struct {
 }
 
 func main() {
-	// client := &http.Client{}
+	args := os.Args[1:]
+	switch args[0] {
 
-	name := os.Args[1]
-	user, err := users.CreateUser(name)
-	// user, err := users.GetUser("1386335")
-	if err != nil {
-		log.Fatal("Error creating new user: ", err)
+	// cleanup
+	case "flush":
+		var data []map[string]struct {
+			Id    string `json:"id"`
+			Email string `json:"email"`
+		}
+		fileData, err := ioutil.ReadFile("./users/users.json")
+		if err != nil {
+			fmt.Printf("Can't open the users file: %v\n", err)
+		}
+		err = json.Unmarshal(fileData, &data)
+		if err != nil {
+			fmt.Printf("Can't read the users file data: %v\n", err)
+		}
+		for i, user := range data {
+			key := "user" + strconv.Itoa(i)
+			err1 := utils.Authenticate(user[key].Email)
+			if err1 != nil {
+				fmt.Printf("Error authenticating the user %v: %v\n", user[key].Id, err1)
+			}
+			err1 = users.DeleteUser(user[key].Id)
+			if err1 != nil {
+				fmt.Printf("Error deleting the user %v: %v\n", user[key].Id, err1)
+			} else {
+				fmt.Printf("User %v deleted.\n", user[key].Id)
+			}
+
+			time.Sleep(3 * time.Second)
+		}
+		err = os.Remove("./users/users.json")
+		if err != nil {
+			fmt.Printf("Error deleting the users file: %v\n", err)
+		}
+
+	// add entities
+	case "add":
+
+		// add account
+		if args[1] == "account" {
+			for _, name := range args[2:] {
+				user, err := users.CreateUser(name)
+				if err != nil {
+					fmt.Printf("Error creating the user %v: %v\n", name, err)
+				}
+				fmt.Printf("Id: %v\t\t Name: %v\t\t Email: %v\n", user.Id, user.Attribute.UserName, user.Attribute.Email)
+
+				time.Sleep(3 * time.Second)
+			}
+			fmt.Println("Completed")
+			return
+		}
+
+	// read entities
+	case "get":
+
+		// read account
+		if args[1] == "account" {
+			// var accounts []users.UserData
+			for _, id := range args[2:] {
+				user, err := users.GetUser(id)
+				if err != nil {
+					fmt.Printf("Error getting the user %v: %v\n", id, err)
+				}
+				// accounts = append(accounts, user)
+				fmt.Printf("Id: %v\t\t Name: %v\t\t Email: %v\n", user.Id, user.Attribute.UserName, user.Attribute.Email)
+
+				time.Sleep(3 * time.Second)
+			}
+			fmt.Println("Completed")
+			return
+		}
+
+	// delete entities
+	case "delete":
+
+		// delete account
+		if args[1] == "account" {
+			for _, id := range args[2:] {
+				user, err := users.GetUser(id)
+				if err != nil {
+					fmt.Printf("Error getting the user %v for authentication: %v\n", id, err)
+				}
+				err = utils.Authenticate(user.Attribute.Email)
+				if err != nil {
+					fmt.Printf("Error authenticating the user %v: %v\n", id, err)
+				}
+				err = users.DeleteUser(id)
+				if err != nil {
+					fmt.Printf("Error deleting the user %v: %v\n", id, err)
+				}
+
+				time.Sleep(3 * time.Second)
+			}
+			fmt.Println("Completed")
+			return
+		}
 	}
-
-	// // req, err := http.NewRequest("GET", "https://kitsu.io/api/edge/anime", nil)
-	// req, email, err := users.CreateUser(name)
-	// if err != nil {
-	// 	log.Fatal("Error creating the request:", err)
-	// }
-	// response, err := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal("Error sending the request:", err)
-	// }
-	// defer response.Body.Close()
-	// resp_body, err := ioutil.ReadAll(response.Body)
-	// if err != nil {
-	// 	log.Fatal("Error parsing the response:", err)
-	// }
-	// if response.Status != "201 Created" {
-	// 	fmt.Println(string(resp_body), response.Status)
-	// 	log.Fatal("Server Error:")
-	// }
-	// data := make(map[string]users.UserData)
-	// err = json.Unmarshal([]byte(resp_body), &data)
-	// if err != nil {
-	// 	log.Fatal("Error unmarshalling the response:", err)
-	// }
-	// user := data["data"]
-	// user.Attribute.Email = email
-	// file, err := json.MarshalIndent(user, "", "\t")
-	// if err != nil {
-	// 	fmt.Println("Can't marshal the data: %w", err)
-	// }
-	// err = ioutil.WriteFile("user.json", file, 0644)
-	// if err != nil {
-	// 	fmt.Println("Can't write to the: %w", err)
-	// }
-	// fmt.Println(string(resp_body))
-	fmt.Println(user.Id, user.Attribute.UserName, user.Attribute.Email, user.Relationship.(map[string]interface{})["libraryEntries"].(map[string]interface{})["links"])
 }
+
+// func main() {
+// 	// name := os.Args[1]
+// 	// user, err := users.CreateUser(name)
+// 	user, err := users.GetUser("1386365")
+// 	if err != nil {
+// 		fmt.Println("Error getting user: ", err)
+// 	}
+// 	fmt.Println(user.Id, user.Attribute.UserName, user.Attribute.Email, user.Relationship.(map[string]interface{})["libraryEntries"].(map[string]interface{})["links"])
+
+// 	err = utils.Authenticate(user.Attribute.Email)
+// 	if err != nil {
+// 		fmt.Println("Error authenticating the user: %w", err)
+// 	}
+// 	fmt.Println("Authenticated")
+// 	err = users.DeleteUser(user.Id)
+// 	if err != nil {
+// 		fmt.Println("Error deleting the user: %w", err)
+// 	}
+// 	fmt.Println("Deleted")
+// 	user, err = users.GetUser("1386365")
+// 	if err != nil {
+// 		fmt.Println("Error getting user: ", err)
+// 	}
+
+// }
