@@ -5,10 +5,37 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 )
+
+type httpError struct {
+	Code     int
+	Response io.Reader
+}
+
+func (h *httpError) Error() string {
+
+	var resp interface{}
+
+	if err := json.NewDecoder(h.Response).Decode(&resp); err != nil {
+		return err.Error()
+	}
+
+	data := map[string]interface{}{
+		"code":     h.Code,
+		"response": resp,
+	}
+
+	bts, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(bts)
+}
 
 type Attributes struct {
 	UserName string `json:"name"`
@@ -43,12 +70,12 @@ func writeUser(user UserData) error {
 	userFile, err := ioutil.ReadFile("./users/users.json")
 	if userFile != nil {
 		if err != nil {
-			return fmt.Errorf("can't open user file: %w", err)
+			return fmt.Errorf("can't open user file: %v", err)
 		}
 		if len(userFile) > 0 {
 			err = json.Unmarshal(userFile, &data)
 			if err != nil {
-				return fmt.Errorf("can't read user file: %w", err)
+				return fmt.Errorf("can't read user file: %v", err)
 			}
 		}
 	}
@@ -61,11 +88,11 @@ func writeUser(user UserData) error {
 
 	jsonData, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
-		return fmt.Errorf("can't marshal the data to write to the file: %w", err)
+		return fmt.Errorf("can't marshal the data to write to the file: %v", err)
 	}
 	err = ioutil.WriteFile("./users/users.json", jsonData, 0644)
 	if err != nil {
-		return fmt.Errorf("can't write to the file: %w", err)
+		return fmt.Errorf("can't write to the file: %v", err)
 	}
 	return err
 }
@@ -76,24 +103,24 @@ func CreateUser(name string) (UserData, error) {
 	var data requestData
 	var user UserData
 	data.Attribute.UserName = name
-	data.Attribute.Email, err = utils.GetTempMail()
-	if err != nil {
-		return user, fmt.Errorf("error getting email: %w", err)
-	}
-	// data.Attribute.Email = "nenever249@nevyxus.com"
+	// data.Attribute.Email, err = utils.GetTempMail()
+	// if err != nil {
+	// 	return user, fmt.Errorf("error getting email: %v", err)
+	// }
+	data.Attribute.Email = "nenever249@nevyxus.com"
 	data.Attribute.Password = "tempPassword" //please change
 	data.Type = "users"
 
 	wrapper := map[string]requestData{"data": data}
 	jsonData, err := json.Marshal(wrapper)
 	if err != nil {
-		return user, fmt.Errorf("error json marshalling: %w", err)
+		return user, fmt.Errorf("error json marshalling: %v", err)
 	}
 
 	requestBody := bytes.NewReader(jsonData)
 	request, err := http.NewRequest("POST", "https://kitsu.io/api/edge/users", requestBody)
 	if err != nil {
-		return user, fmt.Errorf("error creating new user request: %w", err)
+		return user, fmt.Errorf("error creating new user request: %v", err)
 	}
 	request.Header.Set("Content-Type", "application/vnd.api+json")
 	request.Header.Set("Accept", "application/vnd.api+json")
@@ -101,22 +128,26 @@ func CreateUser(name string) (UserData, error) {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return user, fmt.Errorf("error sending the create_user request: %w", err)
+		return user, fmt.Errorf("error sending the create_user request: %v", err)
 	}
 	defer response.Body.Close()
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return user, fmt.Errorf("error reading the create_user response: %w", err)
+		return user, fmt.Errorf("error reading the create_user response: %v", err)
 	}
 	if response.StatusCode != http.StatusCreated {
 		fmt.Println(string(responseBody), response.Status)
-		return user, fmt.Errorf("server error: %w", err)
+		err := &httpError{
+			Code:     response.StatusCode,
+			Response: bytes.NewReader(responseBody),
+		}
+		return user, err
 	}
 
 	usrData := make(map[string]UserData)
 	err = json.Unmarshal([]byte(responseBody), &usrData)
 	if err != nil {
-		return user, fmt.Errorf("error unmarshalling the create_user response: %w", err)
+		return user, fmt.Errorf("error unmarshalling the create_user response: %v", err)
 	}
 	user = usrData["data"]
 	user.Attribute.Email = data.Attribute.Email
@@ -135,7 +166,7 @@ func GetUser(id string) (UserData, error) {
 
 	request, err := http.NewRequest("GET", "https://kitsu.io/api/edge/users/"+id, nil)
 	if err != nil {
-		return user, fmt.Errorf("error creating get_user request: %w", err)
+		return user, fmt.Errorf("error creating get_user request: %v", err)
 	}
 	request.Header.Set("Content-Type", "application/vnd.api+json")
 	request.Header.Set("Accept", "application/vnd.api+json")
@@ -143,22 +174,22 @@ func GetUser(id string) (UserData, error) {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return user, fmt.Errorf("error sending the get_user request: %w", err)
+		return user, fmt.Errorf("error sending the get_user request: %v", err)
 	}
 	defer response.Body.Close()
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return user, fmt.Errorf("error reading the get_user response: %w", err)
+		return user, fmt.Errorf("error reading the get_user response: %v", err)
 	}
 	if response.StatusCode != http.StatusOK {
 		fmt.Println(string(responseBody), response.Status)
-		return user, fmt.Errorf("server error: %w", err)
+		return user, fmt.Errorf("server error: %v", err)
 	}
 
 	usrData := make(map[string]UserData)
 	err = json.Unmarshal([]byte(responseBody), &usrData)
 	if err != nil {
-		return user, fmt.Errorf("error unmarshalling the create_user response: %w", err)
+		return user, fmt.Errorf("error unmarshalling the create_user response: %v", err)
 	}
 	user = usrData["data"]
 
@@ -166,11 +197,11 @@ func GetUser(id string) (UserData, error) {
 	userFile, err := ioutil.ReadFile("./users/users.json")
 	if userFile != nil {
 		if err != nil {
-			return user, fmt.Errorf("can't open user file: %w", err)
+			return user, fmt.Errorf("can't open user file: %v", err)
 		}
 		err = json.Unmarshal(userFile, &data)
 		if err != nil {
-			return user, fmt.Errorf("can't read user file: %w", err)
+			return user, fmt.Errorf("can't read user file: %v", err)
 		}
 
 		for i, value := range data {
@@ -186,7 +217,7 @@ func GetUser(id string) (UserData, error) {
 func DeleteUser(id string) error {
 	request, err := http.NewRequest("DELETE", "https://kitsu.io/api/edge/users/"+id, nil)
 	if err != nil {
-		return fmt.Errorf("error creating delete_user request: %w", err)
+		return fmt.Errorf("error creating delete_user request: %v", err)
 	}
 	request.Header.Set("Content-Type", "application/vnd.api+json")
 	request.Header.Set("Accept", "application/vnd.api+json")
@@ -195,7 +226,7 @@ func DeleteUser(id string) error {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("error sending the delete_user request: %w", err)
+		return fmt.Errorf("error sending the delete_user request: %v", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusAccepted {
@@ -203,10 +234,10 @@ func DeleteUser(id string) error {
 	}
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("error reading the get_user response: %w", err)
+		return fmt.Errorf("error reading the get_user response: %v", err)
 	}
 	fmt.Println(string(responseBody), response.Status)
-	return fmt.Errorf("server error: %w", err)
+	return fmt.Errorf("server error: %v", err)
 
 }
 

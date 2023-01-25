@@ -96,9 +96,13 @@ func main() {
 			// add entry
 		} else if args[1] == "entry" {
 			userId := args[2]
-			entityName := args[3]
-			entityType := args[4]
-			entityStatus := args[5]
+			entityType := args[3]
+			entityStatus := args[4]
+			var entityName string
+
+			for _, word := range args[5:] {
+				entityName = entityName + " " + word
+			}
 
 			user, err := users.GetUser(userId)
 			if err != nil {
@@ -113,7 +117,7 @@ func main() {
 				fmt.Printf("Error creating the entry %v for the user %v: %v\n", entityName, userId, err)
 			}
 
-			fmt.Printf("Id: %v\t\t Name: %v\t\t Type: %v\t\t Status: %v\t\t User: %v\n", entity.Id, entity.Attribute.Name, entity.Attribute.Type, entity.Attribute.Status, userId)
+			fmt.Printf("Id: %v\t\t Name: %v\t\t Type: %v\t\t Status: %v\t\t User: %v\n", entity.Id, entity.Attribute.Name, entity.Attribute.Type, entity.Attribute.Status, entity.Attribute.User)
 
 			time.Sleep(3 * time.Second)
 			return
@@ -148,8 +152,8 @@ func main() {
 			}
 
 			for _, entity := range entities {
-				fmt.Printf("Id: %v\t\t Status: %v\t\t User: %v\n", entity.Id, entity.Attribute.Status, userId)
-
+				// fmt.Println(entity)
+				fmt.Printf("Id: %v\t Name: %-40s\t Type: %-10s\t Status: %-10s\t User: %v\n", entity.Id, entity.Attribute.Name, entity.Attribute.Type, entity.Attribute.Status, entity.Attribute.User)
 			}
 
 			time.Sleep(3 * time.Second)
@@ -202,6 +206,8 @@ func main() {
 // 	// fmt.Println(entity.Relationship.Manga)
 // 	// fmt.Println(entity.Relationship.Anime)
 
-// 	userlibrary.GetLibraryEntry("1386066")
+// 	// userlibrary.GetLibraryEntry("1386066")
+// 	entities, _ := userlibrary.GetLibraryEntry("1386066")
+// 	userlibrary.GetDataByEntry(entities[0])
 
 // }
