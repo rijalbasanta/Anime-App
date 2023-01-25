@@ -46,7 +46,7 @@ func Authenticate(email string) error {
 	if err != nil {
 		return fmt.Errorf("error reading the authentication response: %w", err)
 	}
-	if response.Status != "200 OK" {
+	if response.StatusCode != http.StatusOK {
 		fmt.Println(string(responseBody), response.Status)
 		return fmt.Errorf("server error: %w", err)
 	}

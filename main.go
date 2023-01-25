@@ -1,6 +1,7 @@
 package main
 
 import (
+	userlibrary "anime-app/userLibrary"
 	"anime-app/users"
 	"anime-app/utils"
 	"encoding/json"
@@ -91,6 +92,31 @@ func main() {
 			}
 			fmt.Println("Completed")
 			return
+
+			// add entry
+		} else if args[1] == "entry" {
+			userId := args[2]
+			entityName := args[3]
+			entityType := args[4]
+			entityStatus := args[5]
+
+			user, err := users.GetUser(userId)
+			if err != nil {
+				fmt.Printf("Error getting the user %v for authentication: %v\n", userId, err)
+			}
+			err = utils.Authenticate(user.Attribute.Email)
+			if err != nil {
+				fmt.Printf("Error authenticating the user %v: %v\n", userId, err)
+			}
+			entity, err := userlibrary.CreateLibraryEntry(entityName, entityType, entityStatus, userId)
+			if err != nil {
+				fmt.Printf("Error creating the entry %v for the user %v: %v\n", entityName, userId, err)
+			}
+
+			fmt.Printf("Id: %v\t\t Name: %v\t\t Type: %v\t\t Status: %v\t\t User: %v\n", entity.Id, entity.Attribute.Name, entity.Attribute.Type, entity.Attribute.Status, userId)
+
+			time.Sleep(3 * time.Second)
+			return
 		}
 
 	// read entities
@@ -110,6 +136,23 @@ func main() {
 				time.Sleep(3 * time.Second)
 			}
 			fmt.Println("Completed")
+			return
+
+			// get entries for a user
+		} else if args[1] == "entries" {
+			userId := args[2]
+
+			entities, err := userlibrary.GetLibraryEntry(userId)
+			if err != nil {
+				fmt.Printf("Error getting the library for the user %v: %v\n", userId, err)
+			}
+
+			for _, entity := range entities {
+				fmt.Printf("Id: %v\t\t Status: %v\t\t User: %v\n", entity.Id, entity.Attribute.Status, userId)
+
+			}
+
+			time.Sleep(3 * time.Second)
 			return
 		}
 
@@ -141,27 +184,24 @@ func main() {
 }
 
 // func main() {
-// 	// name := os.Args[1]
-// 	// user, err := users.CreateUser(name)
-// 	user, err := users.GetUser("1386365")
-// 	if err != nil {
-// 		fmt.Println("Error getting user: ", err)
-// 	}
-// 	fmt.Println(user.Id, user.Attribute.UserName, user.Attribute.Email, user.Relationship.(map[string]interface{})["libraryEntries"].(map[string]interface{})["links"])
+// 	// user, err := users.GetUser("1386402")
+// 	// if err != nil {
+// 	// 	fmt.Printf("Error getting the user %v for authentication: %v\n", "1386402", err)
+// 	// }
+// 	// err = utils.Authenticate(user.Attribute.Email)
+// 	// if err != nil {
+// 	// 	fmt.Printf("Error authenticating the user %v: %v\n", "1386402", err)
+// 	// }
+// 	// entity, err := userlibrary.CreateLibraryEntry("one piece", "anime", "completed", "1386402")
+// 	// if err != nil {
+// 	// 	fmt.Println(err)
+// 	// }
+// 	// fmt.Println(entity.Id)
+// 	// fmt.Println(entity.Attribute.Status)
+// 	// fmt.Println(entity.Relationship.User)
+// 	// fmt.Println(entity.Relationship.Manga)
+// 	// fmt.Println(entity.Relationship.Anime)
 
-// 	err = utils.Authenticate(user.Attribute.Email)
-// 	if err != nil {
-// 		fmt.Println("Error authenticating the user: %w", err)
-// 	}
-// 	fmt.Println("Authenticated")
-// 	err = users.DeleteUser(user.Id)
-// 	if err != nil {
-// 		fmt.Println("Error deleting the user: %w", err)
-// 	}
-// 	fmt.Println("Deleted")
-// 	user, err = users.GetUser("1386365")
-// 	if err != nil {
-// 		fmt.Println("Error getting user: ", err)
-// 	}
+// 	userlibrary.GetLibraryEntry("1386066")
 
 // }
